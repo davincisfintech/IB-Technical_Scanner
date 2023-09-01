@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.1.3/dist/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+        <link rel="stylesheet" href="https://cdn.datatables.net/1.10.22/css/jquery.dataTables.min.css">
+
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.0/jquery.min.js" crossorigin="anonymous"></script>
+        <script src="https://cdn.jsdelivr.net/npm/popper.js@1.14.3/dist/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.1.3/dist/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy" crossorigin="anonymous"></script>
+
+        <script src="https://cdn.datatables.net/1.10.22/js/jquery.dataTables.min.js"></script>
+        <script src="https://cdn.datatables.net/buttons/1.6.5/js/dataTables.buttons.min.js"></script>
+        <script src="https://cdn.datatables.net/buttons/1.6.5/js/buttons.flash.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
+        <script src="https://cdn.datatables.net/buttons/1.6.5/js/buttons.html5.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/pdfmake.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/vfs_fonts.js"></script>
+     <title>Dashboard</title>
+    </head>
+    <body>
+
+    <br>
+    <h1 style='text-align:center;'>Data Dashboard</h1>
+    <br><br>
+    <div style='text-align:center;' class="text-primary" id="progress-status"></div>
+    <div id="alert_placeholder"></div>
+    <br><br>
+
+
+    <form id="data-form" class="form-inline align-items-center justify-content-center">
+      <div class="form-group mb-2 mx-sm-3 mb-2">
+        <label for="symbol" class="sr-only">Symbol</label>
+        <input type="text" class="form-control" id="symbol">
+      </div>
+      <button type="submit" class="btn btn-primary mb-2">Submit</button>
+    </form>
+
+    <br><br>
+    <div class="container">
+        <div class="row">
+             <div class="col-md-4 font-weight-bold">
+                  Ticker: <span id="ticker"></span>
+             </div>
+            <div class="col-md-4 font-weight-bold">
+                  Time: <span id="time"></span>
+            </div>
+            <div class="col-md-4 font-weight-bold">
+                  Current price: <span id="price"></span>
+            </div>
+        </div>
+    </div>
+
+    <br><br>
+    <div class="table-responsive">
+        <h3 style='text-align:center;'>High/Low Table</h3>
+        <table class="table table-bordered" id="high-low-table">
+
+        </table>
+    </div>
+    <br><br>
+        <div class="table-responsive">
+            <h3 style='text-align:center;'>Indicators Table</h3>
+            <table class="table table-bordered" id="indicators-table">
+
+            </table>
+    </div>
+    <br><br>
+        <div class="table-responsive">
+            <h3 style='text-align:center;'> Trend Table</h3>
+            <table class="table table-bordered" id="trends-table">
+
+            </table>
+    </div>
+    <br><br>
+
+    <script>
+
+var high_low_table = null;
+var indicators_table = null;
+var trends_table = null;
+
+var getData = function(symbol){
+    let req = $.ajax({
+        type : 'GET',
+        url : '/data',
+        'data': {'symbol': symbol}
+    })
+    req.done(function(data){
+        if (data.success){
+            if (!high_low_table){
+                create_high_low_table(data.high_low);
+                create_indicators_table(data.indicators);
+                create_trends_table(data.trends);
+            }
+            else{
+                update_high_low_table(data.high_low);
+                update_indicators_table(data.indicators);
+                update_trends_table(data.trends);
+            }
+            $("#ticker").text(data.ticker)
+            $("#price").text(data.price)
+            $("#time").text(data.time)
+            showAlert(data.message, "alert-success");
+        }
+        else{
+            showAlert(data.message, "alert-danger");
+        }
+        $("#progress-status").text('');
+    })
+    req.fail(function(){
+        showAlert("Failed to fetch data, Make sure you provided right inputs!", "alert-danger");
+        $("#progress-status").text('');
+    })
+};
+
+
+var create_high_low_table = function(table_data){
+            high_low_table = $('#high-low-table').DataTable({
+                    dom: 'Bfrtip',
+                    buttons: [
+                    {extend: 'copyHtml5'}, {extend:'csvHtml5'},
+                    {extend:'excelHtml5'}, {extend:'pdfHtml5'}
+                    ],
+                    "data": table_data,
+                    "columns": [
+                      {'data':'timeframe', "title": "Timeframe"},
+                      {'data':'open', "title": "Open"},
+                      {'data':'high', "title": "High"},
+                      {'data':'low', "title": "Low"},
+                      {'data':'close', "title": "Close"},
+                      {'data':'volume', "title": "Volume"},
+                    ],
+                    "pageLength": 25,
+            });
+}
+
+
+var create_indicators_table = function(table_data){
+            indicators_table = $('#indicators-table').DataTable({
+                    dom: 'Bfrtip',
+                    buttons: [
+                    {extend: 'copyHtml5'}, {extend:'csvHtml5'},
+                    {extend:'excelHtml5'}, {extend:'pdfHtml5'}
+                    ],
+                    "data": table_data,
+                    "columns": [
+                      {'data':'indicator', "title": "Indicator"},
+                      {'data':'15min', "title": "15 Min"},
+                      {'data':'30min', "title": "30 Min"},
+                      {'data':'1hour', "title": "1 Hour"},
+                      {'data':'2hour', "title": "2 Hour"},
+                      {'data':'4hour', "title": "4 Hour"},
+                      {'data':'1day', "title": "1 Day"},
+                      {'data':'1week', "title": "1 Week"}
+                    ],
+                    "pageLength": 25,
+            });
+}
+
+
+var create_trends_table = function(table_data){
+            trends_table = $('#trends-table').DataTable({
+                    dom: 'Bfrtip',
+                    buttons: [
+                    {extend: 'copyHtml5'}, {extend:'csvHtml5'},
+                    {extend:'excelHtml5'}, {extend:'pdfHtml5'}
+                    ],
+                    "data": table_data,
+                    "columns": [
+                      {'data':'duration', "title": "Duration"},
+                      {'data':'time', "title": "Time"},
+                      {'data':'trend', "title": "Trend"}
+                    ],
+                    "pageLength": 25,
+            });
+}
+
+
+var update_high_low_table = function(table_data){
+    high_low_table.clear();
+    high_low_table.rows.add(table_data);
+    high_low_table.draw(false);
+}
+
+var update_indicators_table = function(table_data){
+    indicators_table.clear();
+    indicators_table.rows.add(table_data);
+    indicators_table.draw(false);
+}
+
+var update_trends_table = function(table_data){
+    trends_table.clear();
+    trends_table.rows.add(table_data);
+    trends_table.draw(false);
+}
+
+
+$(document).ready(function() {
+    let form = $("#data-form")
+    form.on('submit', function (e) {
+        e.preventDefault();
+        symbol = $("#symbol").val();
+        if (symbol){
+            $("#progress-status").text('Fetching data, please wait...');
+            getData(symbol);
+        }
+        else{
+            showAlert('Invalid inputs, Make sure you provided right inputs!', 'alert-danger');
+        }
+    });
+
+});
+
+
+function showAlert(message, alert_type ) {
+    $('#alert_placeholder').append(
+      '<div id="alert-div" class="alert alert-dismissible fade show ' +  alert_type + '">' +
+          '<button class="close" data-dismiss="alert" aria-label="close" >×</button>' +
+          '<span>' + message + '</span>' +
+      '</div>' );
+    setTimeout( function() {
+        $("#alert-div").remove();
+    }, 4000 );
+}
+
+    </script>
+
+    </body>
+</html>
